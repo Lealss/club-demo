@@ -96,3 +96,41 @@ h2{font-size:clamp(2.4rem,7vw,4rem);margin-bottom:.4em}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .rv{opacity:0;transform:translateY(16px);transition:opacity .6s,transform .6s}.rv.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}.rv{opacity:1;transform:none}}
+
+
+/* Mejoras de contraste y accesibilidad */
+:root {
+  --accent-d: #176b3c;
+}
+
+/* Enlaces de texto sobre fondos claros */
+.facts dd a,
+.more {
+  color: #176b3c;
+}
+
+/* Indicador de foco más visible sobre fondos claros */
+:focus-visible {
+  outline: 3px solid #176b3c;
+  outline-offset: 3px;
+}
+
+/* En fondos oscuros, usar un foco claro y visible */
+.sec-dark :focus-visible,
+.cta :focus-visible,
+.nav :focus-visible,
+.foot :focus-visible {
+  outline-color: #8be6ad;
+}
+
+/* Evitar que los enlaces de navegación pierdan legibilidad */
+.menu a:not(.btn) {
+  opacity: 1;
+}
+
+/* Respetar la preferencia del usuario por menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
