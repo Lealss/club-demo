@@ -57,22 +57,38 @@
   }
 
   // Carga imágenes y conserva el marcador si alguna no existe.
-  function loadImage(element, source) {
-    if (!element || !source) {
-      if (element) element.remove();
-      return;
+
+function loadImage(element, source) {
+  if (!element || !source) {
+    if (element) {
+      const galleryButton = element.closest("#gallery button");
+
+      if (galleryButton) {
+        galleryButton.remove();
+      } else {
+        element.remove();
+      }
     }
-
-    element.onload = () => {
-      element.parentElement?.classList.add("has-img");
-    };
-
-    element.onerror = () => {
-      element.remove();
-    };
-
-    element.src = source;
+    return;
   }
+
+  element.onload = () => {
+    element.parentElement?.classList.add("has-img");
+  };
+
+  element.onerror = () => {
+    const galleryButton = element.closest("#gallery button");
+
+    if (galleryButton) {
+      galleryButton.remove();
+    } else {
+      element.remove();
+    }
+  };
+
+  element.src = source;
+}
+
 
   loadImage($("#heroImg"), c.heroImage);
   loadImage($("#clubImg"), c.clubImage);
