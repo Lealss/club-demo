@@ -1,372 +1,318 @@
 
-(function () {
+(() => {
   "use strict";
 
   const c = window.siteConfig || {};
-  const $ = (selector) => document.querySelector(selector);
-  const $$ = (selector) => [...document.querySelectorAll(selector)];
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) =>
+    Array.from(root.querySelectorAll(selector));
 
   const esc = (value) =>
-    String(value ?? "").replace(/[&<>"]/g, (char) => ({
+    String(value ?? "").replace(/[&<>"']/g, (char) => ({
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
-      '"': "&quot;"
+      '"': "&quot;",
+      "'": "&#39;"
     })[char]);
 
-  const ICONS = {
-    ball: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6c3 3 3 10.8 0 12.8M18.4 5.6c-3-3-3 10.8 0 12.8"/>',
-    bolt: '<path d="M13 3 5 14h6l-1 7 8-11h-6z"/>',
-    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14c2.6 0 4.5 1.8 4.5 4.5"/>',
-    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
-    heart: '<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/>',
-    trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 20h8"/>'
+  const icons = {
+    ball: '<circle cx="12" cy="12" r="9"/><path d="m8 3 2 5 5 1 3-4M3 10l5-2m4 13-2-6-5-2m10-4 3 5-2 4"/>',
+    bolt: '<path d="m13 2-9 12h7l-1 8 10-13h-7z"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'
   };
 
-  const svg = (key) =>
-    '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-    (ICONS[key] || ICONS.ball) +
-    "</svg>";
+  function toast(message) {
+    const element = $("#toast");
+    if (!element) return;
 
-  const pending = '<span class="pending">A confirmar</span>';
+    element.textContent = message;
+    element.hidden = false;
 
-  // Evita errores si falta algún elemento o dato de configuración.
-  function setText(selector, value) {
-    const element = $(selector);
-    if (element) element.textContent = value || "";
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => {
+      element.hidden = true;
+    }, 3200);
   }
 
-  // Completa los textos configurables.
+  // Rellena textos desde config.js.
   $$("[data-cfg]").forEach((element) => {
-    element.textContent = c[element.dataset.cfg] || "";
+    const key = element.dataset.cfg;
+    const value = c[key];
+
+    if (value !== undefined && value !== null && value !== "") {
+      element.textContent = String(value);
+    } else if (key === "address" || key === "city") {
+      element.textContent = "";
+    }
   });
 
-  const schedules = $("#schedules");
-  if (schedules) {
-    schedules.innerHTML = c.schedules ? esc(c.schedules) : pending;
-  }
+  // Evita que las imágenes inexistentes de la demo generen espacios
+  // con dimensiones variables. El contenedor conserva su proporción.
+  function loadImage(element, source) {
+    if (!element) return;
 
-  setText("#clubText", c.clubText);
-
-  const tags = $("#clubTags");
-  if (tags) {
-    const clubTags = Array.isArray(c.clubTags) ? c.clubTags : [];
-    tags.innerHTML = clubTags
-      .map((tag) => "<li>" + esc(tag) + "</li>")
-      .join("");
-  }
-
-  // Carga imágenes y conserva el marcador si alguna no existe.
-
-function loadImage(element, source) {
-  if (!element || !source) {
-    if (element) {
-      const galleryButton = element.closest("#gallery button");
-
-      if (galleryButton) {
-        galleryButton.remove();
-      } else {
-        element.remove();
-      }
-    }
-    return;
-  }
-
-  element.onload = () => {
-    element.parentElement?.classList.add("has-img");
-  };
-
-  element.onerror = () => {
-    const galleryButton = element.closest("#gallery button");
-
-    if (galleryButton) {
-      galleryButton.remove();
-    } else {
+    if (!source) {
       element.remove();
+      return;
     }
-  };
 
-  element.src = source;
-}
+    element.addEventListener("load", () => {
+      element.parentElement?.classList.add("has-img");
+    }, { once: true });
 
+    element.addEventListener("error", () => {
+      element.remove();
+    }, { once: true });
+
+    element.src = source;
+  }
 
   loadImage($("#heroImg"), c.heroImage);
   loadImage($("#clubImg"), c.clubImage);
 
-  const heroBackground = $(".hero-bg");
-
-  if (heroBackground) {
-    heroBackground.insertAdjacentHTML(
-      "beforeend",
-      '<svg class="lines" viewBox="0 0 200 200" fill="none" stroke="#fff" stroke-width="1.5" aria-hidden="true"><circle cx="100" cy="100" r="80"/><circle cx="100" cy="100" r="6"/><path d="M100 20v160M20 100h160"/></svg>'
-    );
+  // Texto descriptivo del club.
+  const clubText = $("#clubText");
+  if (clubText) {
+    if (c.clubText) {
+      clubText.textContent = c.clubText;
+    } else {
+      clubText.textContent =
+        "Información institucional pendiente de confirmar.";
+      clubText.classList.add("pending");
+    }
   }
 
-  // Actividades.
+  const schedules = $("#schedules");
+  if (schedules) {
+    schedules.textContent = c.schedules || "Horarios a confirmar";
+    if (!c.schedules) schedules.classList.add("pending");
+  }
+
+  // Etiquetas del club.
+  const clubTags = $("#clubTags");
+  if (clubTags && Array.isArray(c.clubTags)) {
+    clubTags.innerHTML = c.clubTags
+      .filter(Boolean)
+      .map((tag) => `<li>${esc(tag)}</li>`)
+      .join("");
+  }
+
+  // Crea tarjetas de actividades.
   const activities = $("#activities");
-  const activityList = Array.isArray(c.activities) ? c.activities : [];
+  if (activities && Array.isArray(c.activities)) {
+    activities.innerHTML = c.activities.map((item) => {
+      const icon = icons[item.icon] || icons.ball;
 
-  if (activities) {
-    activities.innerHTML = activityList.map((activity) =>
-      '<article class="card rv">' +
-        '<div class="ico">' + svg(activity.icon) + "</div>" +
-        "<h3>" + esc(activity.name || "Actividad") + "</h3>" +
-        "<p>" + esc(activity.text || "Información pendiente de confirmar.") + "</p>" +
-        '<a class="more" href="#contacto">Más información</a>' +
-      "</article>"
-    ).join("");
-  }
-
-  // Instalaciones.
-  const facilities = $("#facilities");
-  const facilityList = Array.isArray(c.facilities) ? c.facilities : [];
-
-  if (facilities) {
-    facilities.innerHTML = facilityList.map((facility) =>
-      '<article class="card fac rv">' +
-        '<figure class="ph" data-label="FOTO">' +
-          '<img alt="" loading="lazy">' +
-        "</figure>" +
-        "<div>" +
-          "<h3>" + esc(facility.name || "Instalación") + "</h3>" +
-          "<p>" + esc(facility.text || "Descripción pendiente de confirmar.") + "</p>" +
-        "</div>" +
-      "</article>"
-    ).join("");
-
-    $$("#facilities img").forEach((element, index) => {
-      loadImage(element, facilityList[index]?.image);
-    });
-  }
-
-  // Galería.
-  const gallery = $("#gallery");
-  const galleryList = Array.isArray(c.gallery) ? c.gallery : [];
-
-  if (gallery) {
-    gallery.innerHTML = galleryList.map((item, index) => {
-      const size = ["big", "wide"].includes(item.size) ? item.size : "";
-
-      return (
-        '<button type="button" class="ph rv ' + size + '"' +
-          ' data-i="' + index + '"' +
-          ' data-label="' + esc(item.label || "Imagen de ejemplo") + '"' +
-          ' aria-label="Ampliar imagen ' + (index + 1) + '">' +
-          '<img alt="" loading="lazy">' +
-        "</button>"
-      );
+      return `
+        <article class="card">
+          <div class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24">${icon}</svg>
+          </div>
+          <h3>${esc(item.name || "Actividad")}</h3>
+          <p>${esc(item.text || "Información pendiente de confirmar.")}</p>
+        </article>
+      `;
     }).join("");
+  }
 
-    $$("#gallery img").forEach((element, index) => {
-      loadImage(element, galleryList[index]?.image);
+  // Crea tarjetas de instalaciones.
+  const facilities = $("#facilities");
+  if (facilities && Array.isArray(c.facilities)) {
+    facilities.innerHTML = c.facilities.map((item) => `
+      <article class="card fac">
+        <div class="ph" data-label="IMAGEN DE EJEMPLO">
+          <img alt="" loading="lazy">
+        </div>
+        <div class="fac-content">
+          <h3>${esc(item.name || "Instalación")}</h3>
+          <p>${esc(item.text || "Descripción pendiente de confirmar.")}</p>
+        </div>
+      </article>
+    `).join("");
+
+    $$(".fac img", facilities).forEach((img, index) => {
+      loadImage(img, c.facilities[index]?.image);
     });
   }
 
-  // Visor de imágenes.
+  // Galería: cada imagen válida se puede ampliar.
+  const gallery = $("#gallery");
   const lightbox = $("#lb");
   const lightboxImage = $("#lbimg");
-  const lightboxFigure = $("#lbph");
 
-  if (gallery && lightbox && lightboxImage && lightboxFigure) {
-    gallery.addEventListener("click", (event) => {
-      const button = event.target.closest("button[data-i]");
-      if (!button) return;
+  if (gallery && Array.isArray(c.gallery)) {
+    gallery.innerHTML = c.gallery.map((item, index) => `
+      <button
+        class="ph ${item.size === "big" ? "big" : ""} ${item.size === "wide" ? "wide" : ""}"
+        type="button"
+        data-gallery-index="${index}"
+        aria-label="Ampliar ${esc(item.label || "imagen de galería")}"
+        data-label="${esc(item.label || "IMAGEN DE EJEMPLO")}">
+        <img alt="" loading="lazy">
+      </button>
+    `).join("");
 
-      const item = galleryList[Number(button.dataset.i)];
+    $$(".gallery img", gallery).forEach((img, index) => {
+      const item = c.gallery[index];
+
       if (!item?.image) {
-        showToast("Esta imagen todavía no está disponible.");
-        return;
+        img.closest("button")?.remove();
+      } else {
+        loadImage(img, item.image);
       }
+    });
 
-      lightboxFigure.dataset.label = item.label || "Imagen de ejemplo";
-      lightboxFigure.classList.remove("has-img");
+    // Elimina botones cuando su imagen no pudo cargarse.
+    $$(".gallery img", gallery).forEach((img) => {
+      img.addEventListener("error", () => {
+        img.closest("button")?.remove();
+      }, { once: true });
+    });
 
-      lightboxImage.onload = () => {
-        lightboxFigure.classList.add("has-img");
-      };
+    gallery.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-gallery-index]");
+      if (!button || !lightbox || !lightboxImage) return;
 
-      lightboxImage.onerror = () => {
-        lightboxImage.removeAttribute("src");
-        showToast("No se pudo cargar la imagen.");
-      };
+      const item = c.gallery[Number(button.dataset.galleryIndex)];
+      if (!item?.image) return;
 
       lightboxImage.src = item.image;
+      lightboxImage.alt = item.label || "Imagen de galería";
 
-      if (!lightbox.open) {
+      lightboxImage.onerror = () => {
+        lightbox.close();
+        lightboxImage.removeAttribute("src");
+        toast("No se pudo cargar esa imagen.");
+      };
+
+      if (typeof lightbox.showModal === "function") {
         lightbox.showModal();
       }
     });
+  }
 
-    $("#lbx")?.addEventListener("click", () => lightbox.close());
+  // Cierre de la galería.
+  $("#lbx")?.addEventListener("click", () => {
+    if (lightbox?.open) lightbox.close();
+  });
 
-    lightbox.addEventListener("click", (event) => {
-      if (event.target === lightbox) lightbox.close();
-    });
+  lightbox?.addEventListener("click", (event) => {
+    if (event.target === lightbox) lightbox.close();
+  });
 
-    lightbox.addEventListener("close", () => {
+  lightbox?.addEventListener("close", () => {
+    if (lightboxImage) {
       lightboxImage.removeAttribute("src");
-      lightboxFigure.classList.remove("has-img");
-    });
-  }
+      lightboxImage.onerror = null;
+    }
+  });
 
-  // Mensajes temporales.
-  let toastTimer;
-
-  function showToast(message) {
-    const toast = $("#toast");
-    if (!toast) return;
-
-    toast.textContent = message;
-    toast.classList.add("show");
-
-    clearTimeout(toastTimer);
-
-    toastTimer = setTimeout(() => {
-      toast.classList.remove("show");
-    }, 2600);
-  }
-
-  // Enlaces: no inventar teléfono, Instagram ni dirección.
-  const phone = String(c.whatsapp || "").replace(/\D/g, "");
-  const validPhone = phone.length >= 8 && phone.length <= 15;
+  // Enlaces de contacto. Si faltan datos, no se inventan destinos.
+  const digits = String(c.whatsapp || "").replace(/\D/g, "");
+  const validWhatsApp = digits.length >= 8 && digits.length <= 15;
+  const whatsappMessage = encodeURIComponent(
+    c.whatsappMsg || "Hola, quisiera más información."
+  );
 
   let instagramURL = "";
+  if (c.instagram) {
+    try {
+      const candidate = new URL(c.instagram);
+      const host = candidate.hostname.toLowerCase();
 
-  try {
-    const parsed = new URL(c.instagram || "");
-
-    if (
-      parsed.protocol === "https:" &&
-      (parsed.hostname === "instagram.com" ||
-       parsed.hostname === "www.instagram.com")
-    ) {
-      instagramURL = parsed.href;
+      if (
+        candidate.protocol === "https:" &&
+        (host === "instagram.com" || host === "www.instagram.com")
+      ) {
+        instagramURL = candidate.href;
+      }
+    } catch {
+      instagramURL = "";
     }
-  } catch (_) {
-    // El enlace queda desactivado si la URL no es válida.
   }
 
-  const address = [c.address, c.city].filter(Boolean).join(", ");
-  const validAddress = Boolean(String(c.address || "").trim());
+  const address = [c.address, c.city]
+    .filter((value) => String(value || "").trim())
+    .join(", ");
 
-  const links = {
-    whatsapp: validPhone
-      ? "https://wa.me/" + phone +
-        "?text=" + encodeURIComponent(c.whatsappMsg || "Hola, quisiera más información.")
-      : "",
-    instagram: instagramURL,
-    directions: validAddress
-      ? "https://www.google.com/maps/dir/?api=1&destination=" +
-        encodeURIComponent(address)
-      : ""
-  };
+  const directionsURL = address
+    ? "https://www.google.com/maps/search/?api=1&query=" +
+      encodeURIComponent(address)
+    : "";
 
-  $$("[data-link]").forEach((element) => {
-    const type = element.dataset.link;
-    const url = links[type] || "";
+  const mapBox = $("#mapBox");
+  const map = $("#map");
 
-    if (url) {
-      element.href = url;
+  if (address && mapBox && map) {
+    map.src = "https://www.google.com/maps?q=" +
+      encodeURIComponent(address) + "&output=embed";
+    mapBox.hidden = false;
+  }
 
-      if (type === "whatsapp" || type === "instagram") {
-        element.target = "_blank";
-        element.rel = "noopener noreferrer";
-      }
-
-      if (element.dataset.text === "wa") {
-        element.textContent = "+" + phone;
-      } else if (element.dataset.text === "ig") {
-        element.textContent = new URL(url).pathname.replaceAll("/", "") || "Instagram";
-      }
-    } else if (element.dataset.text) {
-      element.outerHTML = pending;
+  $$('[data-link="whatsapp"]').forEach((link) => {
+    if (validWhatsApp) {
+      link.href = `https://wa.me/${digits}?text=${whatsappMessage}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
     } else {
-      element.href = "#contacto";
-
-      element.addEventListener("click", (event) => {
+      link.href = "#contacto";
+      link.addEventListener("click", (event) => {
         event.preventDefault();
-
-        const messages = {
-          whatsapp: "WhatsApp todavía no está configurado.",
-          instagram: "Instagram todavía no está configurado.",
-          directions: "Agregá la dirección del club en js/config.js."
-        };
-
-        showToast(messages[type] || "Este enlace todavía no está configurado.");
+        toast("El WhatsApp todavía no está configurado en esta demo.");
       });
     }
   });
 
-  // Mostrar mapa únicamente cuando haya una dirección concreta.
-  const map = $("#map");
-  const mapContainer = map?.closest(".map");
-
-  if (map && mapContainer && validAddress) {
-    map.src =
-      "https://www.google.com/maps?q=" +
-      encodeURIComponent(address) +
-      "&output=embed";
-  } else if (mapContainer) {
-    mapContainer.hidden = true;
-  }
-
-  // Navegación y menú móvil.
-  const nav = $("#nav");
-  const menu = $("#menu");
-  const burger = $("#burger");
-
-  function updateNavigation() {
-    if (nav) {
-      nav.classList.toggle(
-        "solid",
-        window.scrollY > 40 || Boolean(menu?.classList.contains("open"))
-      );
+  $$('[data-link="instagram"]').forEach((link) => {
+    if (instagramURL) {
+      link.href = instagramURL;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    } else {
+      link.href = "#contacto";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        toast("El Instagram todavía no está configurado en esta demo.");
+      });
     }
-  }
-
-  function toggleMenu(open) {
-    if (!menu || !burger) return;
-
-    menu.classList.toggle("open", open);
-    burger.setAttribute("aria-expanded", String(open));
-    burger.setAttribute(
-      "aria-label",
-      open ? "Cerrar menú" : "Abrir menú"
-    );
-
-    updateNavigation();
-  }
-
-  updateNavigation();
-  window.addEventListener("scroll", updateNavigation, { passive: true });
-
-  burger?.addEventListener("click", () => {
-    toggleMenu(!menu?.classList.contains("open"));
   });
 
-  menu?.addEventListener("click", (event) => {
-    if (event.target.closest("a")) toggleMenu(false);
+  $$('[data-link="directions"]').forEach((link) => {
+    if (directionsURL) {
+      link.href = directionsURL;
+    } else {
+      link.href = "#ubicacion";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        toast("La dirección todavía no está configurada en esta demo.");
+      });
+    }
+  });
+
+  // Menú móvil.
+  const burger = $("#burger");
+  const menu = $("#menu");
+
+  function closeMenu() {
+    if (!burger || !menu) return;
+    burger.setAttribute("aria-expanded", "false");
+    burger.setAttribute("aria-label", "Abrir menú");
+    menu.classList.remove("open");
+  }
+
+  burger?.addEventListener("click", () => {
+    const isOpen = burger.getAttribute("aria-expanded") === "true";
+    burger.setAttribute("aria-expanded", String(!isOpen));
+    burger.setAttribute("aria-label", isOpen ? "Abrir menú" : "Cerrar menú");
+    menu?.classList.toggle("open", !isOpen);
+  });
+
+  $$("#menu a").forEach((link) => {
+    link.addEventListener("click", closeMenu);
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") toggleMenu(false);
+    if (event.key === "Escape") closeMenu();
   });
-
-  // Animaciones al desplazarse por la página.
-  const revealElements = $$(".rv");
-
-  if ("IntersectionObserver" in window) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("in");
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12 });
-
-    revealElements.forEach((element) => observer.observe(element));
-  } else {
-    revealElements.forEach((element) => element.classList.add("in"));
-  }
 })();
