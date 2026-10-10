@@ -4,12 +4,12 @@
    Dejá "" en lo que todavía no esté confirmado.
    ===================================================== */
 window.siteConfig = {
-  name: "MEGA CLUB EL TRÉBOL",
+  name: "EL CLUB",
   demoLabel: "DEMO CONCEPTUAL",
   demoNote: "Demo conceptual — propuesta no oficial",
-  address: "Buchardo 1346",
+  address: "direcciom ----",
   city: "Córdoba, Argentina",
-  whatsapp: "",        // Solo números con código de país. Ej: "5493511234567"
+  whatsapp: "54 123456789",        // Solo números con código de país. Ej: "5493511234567"
   whatsappMsg: "Hola! Quisiera más información sobre el club.",
   instagram: "",       // URL completa. Ej: "https://instagram.com/usuario"
   schedules: "",       // Ej: "Lunes a viernes de 9 a 22 hs"
